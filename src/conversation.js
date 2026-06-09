@@ -4,12 +4,13 @@ const config = require("./config");
 
 function getConversationPath(phone) {
   const safe = phone.replace(/[^a-zA-Z0-9]/g, "_");
-  return path.join(process.cwd(), config.paths.conversations, `${safe}.json`);
+  return path.join(config.paths.conversations, `${safe}.json`);
 }
 
 function ensureDir() {
-  const dir = path.join(process.cwd(), config.paths.conversations);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(config.paths.conversations)) {
+    fs.mkdirSync(config.paths.conversations, { recursive: true });
+  }
 }
 
 function loadHistory(phone) {

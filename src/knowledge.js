@@ -8,7 +8,7 @@ let cachedEmbeddings = null;
 function loadEmbeddings() {
   if (cachedEmbeddings) return cachedEmbeddings;
 
-  const filePath = path.join(process.cwd(), config.paths.embeddings);
+  const filePath = config.paths.embeddings;
   if (!fs.existsSync(filePath)) {
     cachedEmbeddings = [];
     return cachedEmbeddings;
@@ -42,7 +42,7 @@ async function searchKnowledge(query) {
   const openai = getOpenAI();
   const response = await openai.embeddings.create({
     model: config.openai.embeddingModel,
-    input: query,
+    input: query.slice(0, 500),
   });
 
   const queryVector = response.data[0].embedding;
@@ -61,7 +61,7 @@ async function searchKnowledge(query) {
 
 function formatKnowledgeContext(chunks) {
   if (chunks.length === 0) {
-    return "COMPANY KNOWLEDGE: No documents uploaded yet. Answer from general sales assistant best practices only, and tell the user Mr Odun will add company docs soon for more specific answers.";
+    return "COMPANY KNOWLEDGE: Use general Mysogi sales assistant knowledge. For specific rates or policies, say you'll check the docs or escalate to Mr Odun if unsure.";
   }
 
   const sections = chunks.map(

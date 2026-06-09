@@ -3,7 +3,7 @@ const path = require("path");
 const config = require("./config");
 
 function loadStyleExamples() {
-  const filePath = path.join(process.cwd(), config.paths.styleExamples);
+  const filePath = config.paths.styleExamples;
   if (!fs.existsSync(filePath)) return [];
 
   try {
