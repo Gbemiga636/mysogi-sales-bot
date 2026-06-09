@@ -35,7 +35,7 @@ const config = {
   },
   conversation: {
     maxHistoryMessages: 20,
-    maxContextChunks: 8,
+    maxContextChunks: 6,
   },
 };
 

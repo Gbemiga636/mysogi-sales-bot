@@ -58,11 +58,11 @@ async function generateReply(phone, userMessage) {
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
       messages,
-      temperature: 0.65,
-      top_p: 0.9,
-      max_tokens: 800,
-      presence_penalty: 0.1,
-      frequency_penalty: 0.1,
+      temperature: 0.45,
+      top_p: 0.92,
+      max_tokens: 900,
+      presence_penalty: 0.15,
+      frequency_penalty: 0.05,
     });
 
     const reply =
