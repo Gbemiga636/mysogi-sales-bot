@@ -204,6 +204,14 @@ async function main() {
   }
 
   console.log(`\nTotal chunks to embed: ${allChunks.length}`);
+
+  const index = allChunks.map((c) => ({ text: c.text, source: c.source }));
+  fs.writeFileSync(
+    path.join(root, "data/knowledge-index.json"),
+    JSON.stringify(index)
+  );
+  console.log(`Saved ${index.length} chunks to data/knowledge-index.json (fast search)`);
+
   const embeddings = await embedChunks(allChunks);
 
   fs.writeFileSync(

@@ -1,6 +1,6 @@
 const config = require("./config");
 const { buildSystemPrompt } = require("./persona");
-const { searchKnowledge, formatKnowledgeContext } = require("./knowledge");
+const { getKnowledgeContext } = require("./knowledge");
 const { loadHistory, addMessage } = require("./conversation");
 const { getOpenAI, classifyOpenAIError } = require("./openai-client");
 
@@ -20,15 +20,6 @@ function buildSearchQuery(userMessage, history) {
     .map((m) => m.content);
 
   return [...recentUser, userMessage].join(" ").trim();
-}
-
-async function safeSearchKnowledge(query) {
-  try {
-    return await searchKnowledge(query);
-  } catch (err) {
-    console.error("Knowledge search failed (continuing without docs):", err.message);
-    return [];
-  }
 }
 
 async function generateReply(phone, userMessage) {
@@ -52,8 +43,9 @@ async function generateReply(phone, userMessage) {
   try {
     const searchQuery = buildSearchQuery(trimmed, history);
     const skipRag = isSimpleGreeting(trimmed);
-    const knowledgeChunks = skipRag ? [] : await safeSearchKnowledge(searchQuery);
-    const knowledgeContext = formatKnowledgeContext(knowledgeChunks);
+    const knowledgeContext = skipRag
+      ? getKnowledgeContext("")
+      : getKnowledgeContext(searchQuery);
 
     const systemPrompt = `${buildSystemPrompt()}\n\n${knowledgeContext}`;
     const messages = [

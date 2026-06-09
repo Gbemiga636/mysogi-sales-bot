@@ -27,6 +27,8 @@ const config = {
   paths: {
     documents: path.join(process.cwd(), "data/documents"),
     chats: path.join(process.cwd(), "data/chats"),
+    coreKnowledge: path.join(process.cwd(), "data/documents/MYSOGI-SALES-KNOWLEDGE-BASE.txt"),
+    knowledgeIndex: path.join(process.cwd(), "data/knowledge-index.json"),
     embeddings: path.join(process.cwd(), "data/embeddings.json"),
     styleExamples: path.join(process.cwd(), "data/style-examples.json"),
     conversations: path.join(dataRoot, "data/conversations"),

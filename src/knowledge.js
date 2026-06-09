@@ -1,75 +1,110 @@
 const fs = require("fs");
-const path = require("path");
 const config = require("./config");
-const { getOpenAI } = require("./openai-client");
 
-let cachedEmbeddings = null;
+let cachedCore = null;
+let cachedIndex = null;
 
-function loadEmbeddings() {
-  if (cachedEmbeddings) return cachedEmbeddings;
+const STOP_WORDS = new Set([
+  "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+  "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
+  "how", "its", "may", "new", "now", "old", "see", "way", "who", "did",
+  "let", "say", "she", "too", "use", "what", "when", "where", "which",
+  "with", "this", "that", "from", "have", "will", "your", "about", "they",
+  "them", "then", "than", "been", "being", "would", "could", "should",
+  "into", "just", "like", "make", "much", "need", "some", "very", "also",
+]);
 
-  const filePath = config.paths.embeddings;
+function loadCoreKnowledge() {
+  if (cachedCore !== null) return cachedCore;
+
+  const filePath = config.paths.coreKnowledge;
   if (!fs.existsSync(filePath)) {
-    cachedEmbeddings = [];
-    return cachedEmbeddings;
+    cachedCore = "";
+    return cachedCore;
   }
 
   try {
-    cachedEmbeddings = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    return cachedEmbeddings;
+    cachedCore = fs.readFileSync(filePath, "utf8").trim();
   } catch {
-    cachedEmbeddings = [];
-    return cachedEmbeddings;
+    cachedCore = "";
   }
+  return cachedCore;
 }
 
-function cosineSimilarity(a, b) {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+function loadIndex() {
+  if (cachedIndex !== null) return cachedIndex;
+
+  const filePath = config.paths.knowledgeIndex;
+  if (!fs.existsSync(filePath)) {
+    cachedIndex = [];
+    return cachedIndex;
   }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+
+  try {
+    cachedIndex = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    cachedIndex = [];
+  }
+  return cachedIndex;
 }
 
-async function searchKnowledge(query) {
-  const embeddings = loadEmbeddings();
-  if (embeddings.length === 0) return [];
+function tokenize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s₦]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
 
-  const openai = getOpenAI();
-  const response = await openai.embeddings.create({
-    model: config.openai.embeddingModel,
-    input: query.slice(0, 500),
-  });
+function keywordSearch(query, limit = 3) {
+  const terms = tokenize(query);
+  if (terms.length === 0) return [];
 
-  const queryVector = response.data[0].embedding;
+  const index = loadIndex();
 
-  const ranked = embeddings
-    .map((item) => ({
-      ...item,
-      score: cosineSimilarity(queryVector, item.embedding),
-    }))
+  return index
+    .map((chunk) => {
+      const text = chunk.text.toLowerCase();
+      let score = 0;
+      for (const term of terms) {
+        if (text.includes(term)) score += 1;
+      }
+      // Boost exact multi-word matches
+      const q = query.toLowerCase();
+      if (q.length > 4 && text.includes(q)) score += 5;
+      return { ...chunk, score };
+    })
+    .filter((c) => c.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, config.conversation.maxContextChunks)
-    .filter((item) => item.score > 0.3);
-
-  return ranked;
+    .slice(0, limit);
 }
 
-function formatKnowledgeContext(chunks) {
-  if (chunks.length === 0) {
-    return "COMPANY KNOWLEDGE: Use general Mysogi sales assistant knowledge. For specific rates or policies, say you'll check the docs or escalate to Mr Odun if unsure.";
+/**
+ * Fast knowledge lookup — no OpenAI API call, no 6MB file load.
+ * Always includes core sales KB + top keyword-matched doc excerpts.
+ */
+function getKnowledgeContext(query) {
+  const core = loadCoreKnowledge();
+  const matches = keywordSearch(query);
+
+  let context = "";
+
+  if (core) {
+    context += `MYSOGI CORE KNOWLEDGE (always accurate — use for rates, products, channels):\n\n${core}`;
   }
 
-  const sections = chunks.map(
-    (chunk, i) =>
-      `[Source ${i + 1}: ${chunk.source}]\n${chunk.text}`
-  );
+  if (matches.length > 0) {
+    const excerpts = matches
+      .map((c, i) => `[Detail ${i + 1} from ${c.source}]\n${c.text}`)
+      .join("\n\n");
+    context += `\n\nEXTRA DETAILS FOR THIS QUESTION:\n${excerpts}`;
+  }
 
-  return `COMPANY KNOWLEDGE (use this to answer — do not invent info beyond this):\n\n${sections.join("\n\n")}`;
+  if (!context) {
+    return "COMPANY KNOWLEDGE: Use general Mysogi sales best practices. Escalate to Mr Odun if unsure.";
+  }
+
+  return context;
 }
 
-module.exports = { searchKnowledge, formatKnowledgeContext, loadEmbeddings };
+module.exports = { getKnowledgeContext, loadCoreKnowledge, loadIndex, keywordSearch };
