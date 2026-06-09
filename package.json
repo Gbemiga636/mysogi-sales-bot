@@ -1,0 +1,28 @@
+{
+  "name": "mysogi-sales-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Mr Odun's sales assistant WhatsApp bot for Mysogi sales team",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "ingest": "node scripts/ingest.js",
+    "test:local": "node scripts/test-local.js",
+    "test:openai": "node scripts/test-openai.js",
+    "test:whatsapp": "node scripts/test-whatsapp.js",
+    "register:whatsapp": "node scripts/register-whatsapp.js",
+    "setup:whatsapp": "node scripts/setup-whatsapp.js",
+    "webhook:status": "node scripts/webhook-status.js",
+    "tunnel": "node scripts/tunnel.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mammoth": "^1.9.0",
+    "openai": "^4.77.0",
+    "pdf-parse": "^1.1.1"
+  }
+}

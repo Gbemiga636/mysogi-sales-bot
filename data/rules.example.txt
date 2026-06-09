@@ -1,0 +1,8 @@
+Add your bot rules here (plain text). Examples:
+
+- Never approve discounts above 10% without Mr Odun
+- Do not share competitor pricing
+- Redirect HR questions to HR department
+- Product launch date is [DATE] — do not guess
+
+When you upload rules, rename this file to rules.txt and run: npm run ingest

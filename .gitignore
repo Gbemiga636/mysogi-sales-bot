@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.local
+data/conversations/
+data/documents/_extract_*
+data/documents/Airport*
+*.log
+.vercel
