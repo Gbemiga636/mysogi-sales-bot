@@ -20,7 +20,12 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "healthy" });
+  res.json({
+    status: "healthy",
+    openai: Boolean(config.openai.apiKey),
+    whatsapp: Boolean(config.whatsapp.token && config.whatsapp.phoneNumberId),
+    verifyToken: Boolean(config.whatsapp.verifyToken),
+  });
 });
 
 app.get("/webhook", (req, res) => {
@@ -38,32 +43,37 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-  res.sendStatus(200);
-
   const messages = extractTextMessages(req.body);
+
   if (messages.length === 0) {
     console.log("Webhook received (no text messages)");
-    return;
+    return res.sendStatus(200);
   }
 
-  for (const msg of messages) {
-    console.log(`Message from ${msg.from}: ${msg.text.slice(0, 80)}`);
-    try {
-      await markAsRead(msg.id);
-      const reply = await generateReply(msg.from, msg.text);
-      await sendTextMessage(msg.from, reply);
-      console.log(`Replied to ${msg.from}`);
-    } catch (err) {
-      console.error(`Error handling message from ${msg.from}:`, err.message);
+  try {
+    for (const msg of messages) {
+      console.log(`Message from ${msg.from}: ${msg.text.slice(0, 80)}`);
       try {
-        await sendTextMessage(
-          msg.from,
-          "ngl I'm having a technical moment rn 😅 Try again in a bit or reach Mr Odun directly."
-        );
-      } catch {
-        console.error("Failed to send error message");
+        await markAsRead(msg.id);
+        const reply = await generateReply(msg.from, msg.text);
+        await sendTextMessage(msg.from, reply);
+        console.log(`Replied to ${msg.from}`);
+      } catch (err) {
+        console.error(`Error handling message from ${msg.from}:`, err.message);
+        try {
+          await sendTextMessage(
+            msg.from,
+            "ngl I'm having a technical moment rn 😅 Try again in a bit or reach Mr Odun directly."
+          );
+        } catch {
+          console.error("Failed to send error message");
+        }
       }
     }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Webhook handler error:", err.message);
+    res.sendStatus(500);
   }
 });
 
