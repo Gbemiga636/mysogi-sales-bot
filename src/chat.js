@@ -9,9 +9,7 @@ const GREETING = `Hi! It's Mr Odun's assistant here 🤝
 
 Ask me anything — rates, billboards, Meta ads, client objections, whatever you need.
 
-Need Mr Odun himself? Type *mr odun* or tap the button below.`;
-
-const MENU_HINT = `\n\n—\nNot what you need? Type *mr odun* to reach him directly.`;
+Whenever you're not getting the response you want, just send *mr odun* and he'll respond to you directly.`;
 
 function isSimpleGreeting(text) {
   return /^(hi|hello|hey|good morning|good afternoon|good evening|yo|sup|hiya)[!.?\s]*$/i.test(
@@ -32,16 +30,14 @@ function buildSearchQuery(userMessage, history) {
   return [...recentUser, userMessage].join(" ").trim();
 }
 
-async function generateReply(phone, userMessage, options = {}) {
+async function generateReply(phone, userMessage) {
   const trimmed = userMessage.trim();
-  const { skipButtons = false } = options;
 
   if (/^(reset|clear|start over|new chat)$/i.test(trimmed)) {
     clearHistory(phone);
     clearState(phone);
     return {
       text: `Bet — fresh start, we move 🔄\n\n${GREETING}`,
-      showButtons: true,
     };
   }
 
@@ -54,28 +50,19 @@ async function generateReply(phone, userMessage, options = {}) {
 • Type *reset* — start a new chat
 
 Mr Odun direct: ${config.manager.displayPhone}`,
-      showButtons: true,
     };
   }
 
   // Button: Talk to Mr Odun
   if (trimmed === "mr_odun") {
     const result = await handleEscalationFlow(phone, "mr odun");
-    return { text: result.text, showButtons: false };
-  }
-
-  // Button: Got it thanks — friendly close
-  if (trimmed === "ask_ai") {
-    return {
-      text: "Cool — ask me anything else whenever you need 🤝",
-      showButtons: false,
-    };
+    return { text: result.text };
   }
 
   // Escalation flow
   const escalation = await handleEscalationFlow(phone, trimmed);
   if (escalation) {
-    return { text: escalation.text, showButtons: false };
+    return { text: escalation.text };
   }
 
   const history = loadHistory(phone);
@@ -83,7 +70,7 @@ Mr Odun direct: ${config.manager.displayPhone}`,
   if (isSimpleGreeting(trimmed) && history.length === 0) {
     addMessage(phone, "user", trimmed);
     addMessage(phone, "assistant", GREETING);
-    return { text: GREETING, showButtons: true };
+    return { text: GREETING };
   }
 
   try {
@@ -111,28 +98,23 @@ Mr Odun direct: ${config.manager.displayPhone}`,
       frequency_penalty: 0.05,
     });
 
-    let reply =
+    const reply =
       completion.choices[0]?.message?.content?.trim() ||
-      "ngl something went wrong on my end — try again or type *mr odun* to reach him directly.";
-
-    // Append escalation hint on substantive answers (not every time)
-    if (!skipButtons && reply.length > 80 && !reply.includes("mr odun")) {
-      reply += MENU_HINT;
-    }
+      "ngl something went wrong on my end — try again in a sec.";
 
     addMessage(phone, "user", trimmed);
     addMessage(phone, "assistant", reply);
 
-    return { text: reply, showButtons: !skipButtons };
+    return { text: reply };
   } catch (err) {
     console.error("OpenAI error:", err.message);
 
     const known = classifyOpenAIError(err);
     const fallback = known
-      ? `ngl I'm having a tech issue rn 😅 (${known})\n\nTry again in a sec or type *mr odun* to reach him directly.`
-      : `ngl technical moment rn 😅 Try again or type *mr odun* for Mr Odun directly.`;
+      ? `ngl I'm having a tech issue rn 😅 (${known}) — try again shortly.`
+      : `ngl technical moment rn 😅 Try again in a bit.`;
 
-    return { text: fallback, showButtons: true };
+    return { text: fallback };
   }
 }
 

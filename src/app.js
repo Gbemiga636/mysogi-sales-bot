@@ -3,7 +3,6 @@ const config = require("./config");
 const { generateReply } = require("./chat");
 const {
   sendTextMessage,
-  sendButtonMessage,
   markAsRead,
   extractIncomingMessages,
 } = require("./whatsapp");
@@ -59,14 +58,6 @@ app.post("/webhook", async (req, res) => {
         await markAsRead(msg.id);
         const result = await generateReply(msg.from, msg.text);
         await sendTextMessage(msg.from, result.text);
-
-        if (result.showButtons) {
-          await sendButtonMessage(
-            msg.from,
-            "Quick options 👇"
-          ).catch((e) => console.warn("Buttons failed:", e.message));
-        }
-
         console.log(`Replied to ${msg.from}`);
       } catch (err) {
         console.error(`Error from ${msg.from}:`, err.message);
