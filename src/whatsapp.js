@@ -89,7 +89,11 @@ function extractIncomingMessages(body) {
         };
 
         if (msg.type === "text" && msg.text?.body) {
-          messages.push({ ...base, text: msg.text.body });
+          messages.push({
+            ...base,
+            text: msg.text.body,
+            contextId: msg.context?.id || null,
+          });
         } else if (msg.type === "interactive") {
           const buttonId = msg.interactive?.button_reply?.id;
           const buttonTitle = msg.interactive?.button_reply?.title;
@@ -102,6 +106,7 @@ function extractIncomingMessages(body) {
               text: buttonId,
               buttonId,
               buttonTitle,
+              contextId: msg.context?.id || null,
               isInteractive: true,
             });
           } else if (listId) {

@@ -9,7 +9,7 @@ const GREETING = `Hi! It's Mr Odun's assistant here 🤝
 
 Ask me anything — rates, billboards, Meta ads, client objections, whatever you need.
 
-Whenever you're not getting the response you want, just send *mr odun* and he'll respond to you directly.`;
+Whenever you're not getting the response you want, send *mr odun* — he'll reply right here in this chat.`;
 
 function isSimpleGreeting(text) {
   return /^(hi|hello|hey|good morning|good afternoon|good evening|yo|sup|hiya)[!.?\s]*$/i.test(

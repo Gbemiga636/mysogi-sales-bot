@@ -1,6 +1,7 @@
 const express = require("express");
 const config = require("./config");
 const { generateReply } = require("./chat");
+const { isMrOdun, handleMrOdunMessage } = require("./escalation");
 const {
   sendTextMessage,
   markAsRead,
@@ -56,6 +57,16 @@ app.post("/webhook", async (req, res) => {
 
       try {
         await markAsRead(msg.id);
+
+        // Mr Odun replying → forward to the exact sales rep
+        if (isMrOdun(msg.from)) {
+          const result = await handleMrOdunMessage(msg.text, msg.contextId);
+          await sendTextMessage(msg.from, result.text);
+          console.log(`Mr Odun reply routed`);
+          continue;
+        }
+
+        // Normal sales rep → AI assistant
         const result = await generateReply(msg.from, msg.text);
         await sendTextMessage(msg.from, result.text);
         console.log(`Replied to ${msg.from}`);
@@ -64,7 +75,7 @@ app.post("/webhook", async (req, res) => {
         try {
           await sendTextMessage(
             msg.from,
-            `Something went wrong on my end 😅 Try again or type *mr odun* to reach Mr Odun directly.\n\nHis line: ${config.manager.displayPhone}`
+            `Something went wrong on my end 😅 Try again or type *mr odun* to reach Mr Odun.`
           );
         } catch {
           console.error("Failed to send error message");
