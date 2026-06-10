@@ -2,7 +2,7 @@ const config = require("./config");
 
 const GRAPH_API = `https://graph.facebook.com/${config.whatsapp.apiVersion}`;
 
-async function sendTextMessage(to, text) {
+async function sendMessage(payload) {
   const url = `${GRAPH_API}/${config.whatsapp.phoneNumberId}/messages`;
 
   const response = await fetch(url, {
@@ -11,13 +11,7 @@ async function sendTextMessage(to, text) {
       Authorization: `Bearer ${config.whatsapp.token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to,
-      type: "text",
-      text: { preview_url: false, body: text },
-    }),
+    body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
   });
 
   if (!response.ok) {
@@ -26,6 +20,37 @@ async function sendTextMessage(to, text) {
   }
 
   return response.json();
+}
+
+async function sendTextMessage(to, text) {
+  return sendMessage({
+    to,
+    type: "text",
+    text: { preview_url: false, body: text },
+  });
+}
+
+async function sendButtonMessage(to, bodyText) {
+  return sendMessage({
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: bodyText },
+      action: {
+        buttons: [
+          {
+            type: "reply",
+            reply: { id: "ask_ai", title: "✅ Got it, thanks" },
+          },
+          {
+            type: "reply",
+            reply: { id: "mr_odun", title: "📞 Talk to Mr Odun" },
+          },
+        ],
+      },
+    },
+  });
 }
 
 async function markAsRead(messageId) {
@@ -45,7 +70,7 @@ async function markAsRead(messageId) {
   }).catch(() => {});
 }
 
-function extractTextMessages(body) {
+function extractIncomingMessages(body) {
   const messages = [];
 
   if (body.object !== "whatsapp_business_account") return messages;
@@ -56,13 +81,38 @@ function extractTextMessages(body) {
       if (!value?.messages) continue;
 
       for (const msg of value.messages) {
+        const base = {
+          id: msg.id,
+          from: msg.from,
+          timestamp: msg.timestamp,
+          type: msg.type,
+        };
+
         if (msg.type === "text" && msg.text?.body) {
-          messages.push({
-            id: msg.id,
-            from: msg.from,
-            text: msg.text.body,
-            timestamp: msg.timestamp,
-          });
+          messages.push({ ...base, text: msg.text.body });
+        } else if (msg.type === "interactive") {
+          const buttonId = msg.interactive?.button_reply?.id;
+          const buttonTitle = msg.interactive?.button_reply?.title;
+          const listId = msg.interactive?.list_reply?.id;
+          const listTitle = msg.interactive?.list_reply?.title;
+
+          if (buttonId) {
+            messages.push({
+              ...base,
+              text: buttonId,
+              buttonId,
+              buttonTitle,
+              isInteractive: true,
+            });
+          } else if (listId) {
+            messages.push({
+              ...base,
+              text: listId,
+              buttonId: listId,
+              buttonTitle: listTitle,
+              isInteractive: true,
+            });
+          }
         }
       }
     }
@@ -71,4 +121,10 @@ function extractTextMessages(body) {
   return messages;
 }
 
-module.exports = { sendTextMessage, markAsRead, extractTextMessages };
+module.exports = {
+  sendTextMessage,
+  sendButtonMessage,
+  markAsRead,
+  extractIncomingMessages,
+  extractTextMessages: extractIncomingMessages,
+};

@@ -33,8 +33,8 @@ async function run() {
 
   for (const question of TEST_QUESTIONS) {
     console.log(`User: ${question}`);
-    const reply = await generateReply("openai_test_user", question);
-    console.log(`Bot:  ${reply}\n`);
+    const result = await generateReply("openai_test_user", question);
+    console.log(`Bot:  ${result.text}\n`);
     console.log("---\n");
   }
 

@@ -43,9 +43,9 @@ async function run() {
   if (process.env.OPENAI_API_KEY) {
     console.log("\n→ Testing OpenAI reply...");
     const { generateReply } = require("../src/chat");
-    const reply = await generateReply("test_user_local", "Hi");
+    const result = await generateReply("test_user_local", "Hi");
     console.log("✓ OpenAI reply sample:\n");
-    console.log(reply);
+    console.log(result.text);
     console.log("");
   }
 

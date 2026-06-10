@@ -11,10 +11,14 @@ const config = {
   port: parseInt(process.env.PORT || "3000", 10),
   companyName: process.env.COMPANY_NAME || "Mysogi",
   managerName: "Mr Odun",
+  manager: {
+    phone: (process.env.MR_ODUN_PHONE || "2348087965610").replace(/\D/g, ""),
+    displayPhone: process.env.MR_ODUN_DISPLAY || "+234 808 796 5610",
+  },
   isVercel,
   openai: {
     apiKey: process.env.OPENAI_API_KEY?.trim(),
-    model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
+    model: process.env.OPENAI_MODEL?.trim() || "gpt-4o",
     embeddingModel: "text-embedding-3-small",
   },
   whatsapp: {

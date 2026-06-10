@@ -3,8 +3,9 @@ const config = require("./config");
 const { generateReply } = require("./chat");
 const {
   sendTextMessage,
+  sendButtonMessage,
   markAsRead,
-  extractTextMessages,
+  extractIncomingMessages,
 } = require("./whatsapp");
 
 const app = express();
@@ -16,6 +17,7 @@ app.get("/", (_req, res) => {
     bot: "Mr Odun's Sales Assistant",
     company: config.companyName,
     platform: process.env.VERCEL ? "vercel" : "local",
+    model: config.openai.model,
   });
 });
 
@@ -23,8 +25,9 @@ app.get("/health", (_req, res) => {
   res.json({
     status: "healthy",
     openai: Boolean(config.openai.apiKey),
+    openaiModel: config.openai.model,
     whatsapp: Boolean(config.whatsapp.token && config.whatsapp.phoneNumberId),
-    verifyToken: Boolean(config.whatsapp.verifyToken),
+    mrOdunEscalation: Boolean(config.manager.phone),
   });
 });
 
@@ -34,36 +37,43 @@ app.get("/webhook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe" && token === config.whatsapp.verifyToken) {
-    console.log("Webhook verified successfully");
     return res.status(200).send(challenge);
   }
 
-  console.warn("Webhook verification failed");
   return res.sendStatus(403);
 });
 
 app.post("/webhook", async (req, res) => {
-  const messages = extractTextMessages(req.body);
+  const messages = extractIncomingMessages(req.body);
 
   if (messages.length === 0) {
-    console.log("Webhook received (no text messages)");
     return res.sendStatus(200);
   }
 
   try {
     for (const msg of messages) {
-      console.log(`Message from ${msg.from}: ${msg.text.slice(0, 80)}`);
+      const label = msg.buttonTitle || msg.text;
+      console.log(`Message from ${msg.from}: ${label.slice(0, 80)}`);
+
       try {
         await markAsRead(msg.id);
-        const reply = await generateReply(msg.from, msg.text);
-        await sendTextMessage(msg.from, reply);
+        const result = await generateReply(msg.from, msg.text);
+        await sendTextMessage(msg.from, result.text);
+
+        if (result.showButtons) {
+          await sendButtonMessage(
+            msg.from,
+            "Quick options 👇"
+          ).catch((e) => console.warn("Buttons failed:", e.message));
+        }
+
         console.log(`Replied to ${msg.from}`);
       } catch (err) {
-        console.error(`Error handling message from ${msg.from}:`, err.message);
+        console.error(`Error from ${msg.from}:`, err.message);
         try {
           await sendTextMessage(
             msg.from,
-            "ngl I'm having a technical moment rn 😅 Try again in a bit or reach Mr Odun directly."
+            `Something went wrong on my end 😅 Try again or type *mr odun* to reach Mr Odun directly.\n\nHis line: ${config.manager.displayPhone}`
           );
         } catch {
           console.error("Failed to send error message");
@@ -72,7 +82,7 @@ app.post("/webhook", async (req, res) => {
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error("Webhook handler error:", err.message);
+    console.error("Webhook error:", err.message);
     res.sendStatus(500);
   }
 });

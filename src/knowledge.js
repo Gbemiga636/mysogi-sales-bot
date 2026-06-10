@@ -18,8 +18,21 @@ const PHRASE_BOOSTS = [
   "broad street", "eko hotel", "akin adesola", "lekki-ikoyi", "lekki ikoyi",
   "adetokumbo", "ojodu", "omole", "mma2", "airport", "abuja", "victoria island",
   "smart sms", "voice ads", "rate card", "google display", "meta ads",
-  "cool fm", "wazobia", "africa magic", "billboard", "minimum budget",
+  "instagram", "facebook", "snapchat", "youtube", "billboard", "minimum budget",
+  "cool fm", "wazobia", "naija info", "africa magic", "supersport", "publication",
+  "influencer", "app download", "uac", "led", "ooh", "marina", "lekki",
 ];
+
+const SYNONYMS = {
+  billboard: ["led", "ooh", "display", "outdoor"],
+  instagram: ["meta", "ig", "facebook"],
+  facebook: ["meta", "ig", "instagram"],
+  sms: ["smart sms", "text message"],
+  price: ["rate", "cost", "budget", "₦"],
+  rate: ["price", "cost", "budget"],
+  cheap: ["minimum", "budget", "affordable"],
+  lagos: ["vi", "victoria island", "lekki", "island", "mainland"],
+};
 
 function loadIndex() {
   if (cachedIndex !== null) return cachedIndex;
@@ -46,8 +59,17 @@ function tokenize(text) {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
+function expandTerms(terms) {
+  const expanded = new Set(terms);
+  for (const term of terms) {
+    const syns = SYNONYMS[term];
+    if (syns) syns.forEach((s) => expanded.add(s));
+  }
+  return [...expanded];
+}
+
 function keywordSearch(query, limit) {
-  const terms = tokenize(query);
+  const terms = expandTerms(tokenize(query));
   const qLower = query.toLowerCase();
   const index = loadIndex();
 
@@ -70,9 +92,11 @@ function keywordSearch(query, limit) {
 
       if (qLower.length > 5 && text.includes(qLower)) score += 10;
 
-      // Boost chunks with exact pricing figures
-      if (/₦|\d{1,3},\d{3}|\d{3,}/.test(chunk.text) && /price|rate|cost|budget|daily|weekly|monthly|₦/i.test(query)) {
-        score += 3;
+      if (
+        /₦|\d{1,3},\d{3}|\d{3,}/.test(chunk.text) &&
+        /price|rate|cost|budget|daily|weekly|monthly|₦|how much/i.test(query)
+      ) {
+        score += 4;
       }
 
       return { ...chunk, score };

@@ -14,7 +14,11 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4o-mini
+        value: gpt-4o
+      - key: MR_ODUN_PHONE
+        value: "2348087965610"
+      - key: MR_ODUN_DISPLAY
+        value: "+234 808 796 5610"
       - key: WHATSAPP_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
