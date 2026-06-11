@@ -44,6 +44,15 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
+  const inboundPhoneId =
+    req.body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+  const myPhoneId = config.whatsapp.phoneNumberId;
+
+  if (inboundPhoneId && inboundPhoneId !== myPhoneId) {
+    console.log(`Ignoring webhook for other number: ${inboundPhoneId}`);
+    return res.sendStatus(200);
+  }
+
   const messages = extractIncomingMessages(req.body);
 
   if (messages.length === 0) {
