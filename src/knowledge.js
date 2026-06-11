@@ -106,33 +106,104 @@ function keywordSearch(query, limit) {
     .slice(0, limit);
 }
 
-/**
- * Pull exact excerpts from ingested company documents (PDFs).
- * Document chunks are PRIMARY — never replaced by summaries.
- */
-function getKnowledgeContext(query) {
-  const limit = config.conversation.maxContextChunks;
-  const matches = keywordSearch(query, limit);
+function loadCoreKnowledge() {
+  const filePath = config.paths.coreKnowledge;
+  if (!fs.existsSync(filePath)) return "";
+  try {
+    return fs.readFileSync(filePath, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
 
-  if (matches.length === 0) {
-    return `OFFICIAL COMPANY DOCUMENTS: No matching excerpt found for this question.
-Tell the rep honestly you don't have that specific info in the docs — say to confirm with Mr Odun. Do NOT guess rates or policies.`;
+function dedupeChunks(chunks) {
+  const seen = new Set();
+  return chunks.filter((c) => {
+    const key = c.text.slice(0, 120);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Multi-pass search: main query + individual keywords for better recall.
+ */
+const INTENT_FALLBACKS = [
+  { pattern: /billboard|led|ooh|outdoor|signage|marina|lekki|vi\b|victoria/i, terms: ["billboard", "lagos", "outdoor", "led"] },
+  { pattern: /abuja|fct|gwagwalada/i, terms: ["abuja", "billboard"] },
+  { pattern: /meta|instagram|facebook|ig\b|snap|google|youtube|digital/i, terms: ["meta", "digital", "instagram"] },
+  { pattern: /sms|voice|radio|tv|television/i, terms: ["sms", "voice", "radio"] },
+  { pattern: /rate|price|cost|budget|how much|₦/i, terms: ["rate", "daily", "weekly", "monthly"] },
+  { pattern: /pitch|objection|client|sell|close/i, terms: ["sales", "minimum", "budget"] },
+];
+
+function searchAll(query) {
+  const limit = config.conversation.maxContextChunks;
+  const primary = keywordSearch(query, limit);
+
+  const terms = expandTerms(tokenize(query));
+  const extra = [];
+  for (const term of terms.slice(0, 5)) {
+    extra.push(...keywordSearch(term, 2));
   }
 
-  const excerpts = matches
-    .map(
-      (c, i) =>
-        `--- DOCUMENT EXCERPT ${i + 1} (source: ${c.source}) ---\n${c.text}`
-    )
-    .join("\n\n");
+  let results = dedupeChunks([...primary, ...extra]);
 
-  return `OFFICIAL MYSOGI DOCUMENT DATA — USE EXACT FIGURES FROM HERE:
-The excerpts below are taken directly from Mysogi's official documents (rate cards, billboard briefs, proposals).
-You MUST use the exact numbers, rates, locations, and specs from these excerpts.
-Do NOT round, estimate, or summarize prices. If a rate shows a range, give the full range exactly as written.
-If the excerpt has Daily/Weekly/Monthly, list all that apply.
+  if (results.length < 3) {
+    for (const { pattern, terms: fallbackTerms } of INTENT_FALLBACKS) {
+      if (pattern.test(query)) {
+        for (const t of fallbackTerms) {
+          extra.push(...keywordSearch(t, 2));
+        }
+        break;
+      }
+    }
+    results = dedupeChunks([...primary, ...extra]);
+  }
+
+  if (results.length === 0) {
+    const index = loadIndex();
+    results = index
+      .filter((c) => /₦|rate|daily|billboard|meta|sms/i.test(c.text))
+      .slice(0, Math.min(5, limit));
+  }
+
+  return results.slice(0, limit);
+}
+
+function getKnowledgeContext(query) {
+  const core = loadCoreKnowledge();
+  const matches = searchAll(query);
+
+  let context = `═══ MYSOGI COMPANY KNOWLEDGE BASE ═══
+Use this for products, channels, rates, and sales guidance. Quote exact ₦ figures when present.
+
+${core || "(Core knowledge file loading)"}`;
+
+  if (matches.length > 0) {
+    const excerpts = matches
+      .map(
+        (c, i) =>
+          `--- DOC EXCERPT ${i + 1} (${c.source}) ---\n${c.text}`
+      )
+      .join("\n\n");
+
+    context += `\n\n═══ MATCHING DOCUMENT EXCERPTS (exact source data) ═══
+For rates, locations, specs — use EXACT numbers from these excerpts. Do not round.
 
 ${excerpts}`;
+  }
+
+  context += `\n\n═══ REASONING RULE ═══
+If the exact answer is not in excerpts above, still answer intelligently using:
+- The knowledge base above
+- Your expertise in sales, marketing, advertising, and Nigerian market context
+- Logical inference from related Mysogi products/rates in the docs
+Only for specific Mysogi pricing or policy NOT in docs: give your best recommendation then say "confirm exact rate with Mr Odun if needed."
+Never refuse to help. Never say "I don't have it in my documents" — always give a useful, complete answer.`;
+
+  return context;
 }
 
 module.exports = { getKnowledgeContext, loadIndex, keywordSearch };

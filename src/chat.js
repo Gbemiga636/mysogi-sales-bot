@@ -91,11 +91,11 @@ Mr Odun direct: ${config.manager.displayPhone}`,
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
       messages,
-      temperature: 0.35,
-      top_p: 0.9,
-      max_tokens: 1000,
+      temperature: 0.55,
+      top_p: 0.92,
+      max_tokens: 1500,
       presence_penalty: 0.1,
-      frequency_penalty: 0.05,
+      frequency_penalty: 0.03,
     });
 
     const reply =

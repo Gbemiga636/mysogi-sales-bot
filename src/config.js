@@ -38,8 +38,8 @@ const config = {
     conversations: path.join(dataRoot, "data/conversations"),
   },
   conversation: {
-    maxHistoryMessages: 20,
-    maxContextChunks: 6,
+    maxHistoryMessages: 24,
+    maxContextChunks: 10,
   },
 };
 
